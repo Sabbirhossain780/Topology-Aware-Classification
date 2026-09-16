@@ -43,6 +43,15 @@ def run_stage(stage: str, config: Config, force: bool = False) -> dict:
 
     elif stage == "cluster":
         result = clustering.run_clustering_stage(config)
+        # PCA/KMeans diagnostic plots need the in-memory model objects, not
+        # just the saved CSVs, so they're generated here rather than in the
+        # 'plots' stage.
+        try:
+            visualization.plot_pca_explained(result["pca"], config)
+            visualization.plot_elbow_silhouette(result["kmeans"], config)
+            visualization.plot_pca_clusters(result["pca"], result["kmeans"], result["comparison"], config)
+        except Exception as e:
+            log.warning("Cluster diagnostic plots skipped: %s", e)
 
     elif stage == "betweenness":
         if config.gat_enabled:

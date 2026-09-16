@@ -23,13 +23,18 @@ cache/
 
 # Dhaka topology: the notebook-based version is superseded and validated
 # against the pipeline (see 02_dhaka_road_topology/pipeline/README.md) —
-# only the pipeline source is tracked, not the old notebooks or their data.
+# only the pipeline source + its results/ snapshot are tracked, not the old
+# notebooks or their raw/intermediate data.
 02_dhaka_road_topology/data/
 02_dhaka_road_topology/notebooks/
 02_dhaka_road_topology/outputs/
 02_dhaka_road_topology/gat/
 backup_original_topology/
 pipeline_outputs/
+
+# Repo scope: code + results + README only — no paper drafts/presentations
+01_thesis_document/
+04_reports_and_papers/
 
 # OS
 .DS_Store
