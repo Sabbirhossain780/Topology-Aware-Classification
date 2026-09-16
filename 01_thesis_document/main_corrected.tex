@@ -1,0 +1,469 @@
+\documentclass[sigconf, nonacm]{acmart}
+\settopmatter{printfolios=true}
+
+%% Suppress headers and footers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrule}{}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrule}{}
+}
+
+%% \BibTeX command
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
+%% Disable ACM metadata
+\settopmatter{printacmref=false}
+
+
+%% Conference info (optional)
+\acmConference[Conference Name 'XX]{Make sure to enter the correct
+  conference title from your rights confirmation email}{June 03--05,
+  2024}{City, State}
+
+\begin{document}
+
+\title{A Topology-Aware, Graph-Attention Framework for Intra-Urban Transport Policy Targeting in Dhaka}
+
+\author{Mehzad Galib}
+\email{0424056004@grad.cse.buet.ac.bd}
+\affiliation{%
+  \institution{MSc. in Data Science}
+  \streetaddress{ECE Building, CSE Department}
+  \city{CSE, BUET}
+  \country{Dhaka-1205, Bangladesh}
+}
+
+\author{Md. Sabbir Hossain}
+\email{0424056007@grad.cse.buet.ac.bd}
+\affiliation{%
+  \institution{MSc. in Data Science}
+  \streetaddress{ECE Building, CSE Department}
+  \city{CSE, BUET}
+  \country{Dhaka-1205, Bangladesh}
+}
+
+\begin{abstract}
+Urban transportation planning in megacities suffers from a fundamental misalignment: interventions are deployed uniformly across zones that differ fundamentally in road network topology. In Dhaka, Bangladesh, a city where traffic congestion costs 1.2\% of GDP annually, where policies applied across administrative boundaries ignore functional connectivity, leading to high-cost, low-impact interventions and enormous congestion. While inter-city network classification has advanced, and visual attention systems detect pixel-level risk, neither addresses intra-urban heterogeneity or enables graph-native criticality ranking. We present the Topology-Conditioned Graph Attention (TCGA) framework for intra-urban transport policy targeting in Dhaka, Bangladesh. In Stage 1, a four-version unsupervised clustering audit (V1-V4) applied to 827 zones systematically corrects OSM extraction failures, feature engineering errors, and labelling bias in each iteration. The originally hypothesized four-archetype structure (Maze, Grid, Radial Corridor, Periphery) is not supported: K-Means with $k=2$ dominates across all versions (silhouette 0.366-0.551) while DBSCAN collapses to a single cluster across all 216 tested configurations, indicating a continuous connectivity spectrum rather than discrete typology. In Stage 2, the Graph Attention Topology (GAT) pipeline applies exact Brandes betweenness centrality to 338,429 real OSM nodes across 790 valid zones. One intersection controls a mean of 38.0\% ($\pm$ 13.2\%) of all optimal routing per zone. Orientation entropy shows no correlation with betweenness concentration (Spearman $r=0.02$; $p=0.58)$ establishing that street geometry and routing vulnerability are orthogonal. TCGA produces GPS-locatable, policy-actionable bottleneck rankings conditioned on structural context, identifying specific intersections where infrastructure investment yields maximal return.
+\end{abstract}
+
+\keywords{urban transport planning, network topology, betweenness centrality, graph attention, intra-urban heterogeneity, Dhaka, Bangladesh}
+
+\maketitle
+
+\section{INTRODUCTION}
+Urban road network topology encodes the morphological history of a city. In cities of the Global North, this history has been sufficiently legible to support a well-established classification vocabulary: grid networks, radial-concentric patterns, organic mazes, and peripheral dendrites. These archetypes carry direct transport-policy implications. Grid zones support dispersed travel demand and regular bus routes. Radial corridors concentrate flow and suit trunk-and-feeder systems. Organic mazes resist motorised access and require non-motorised or micro-transit solutions.
+
+Dhaka, the capital of Bangladesh and one of the world's most densely populated megacities, presents a structurally different challenge. With a metropolitan population exceeding 22 million and road densities that locally exceed 25 km/km², the city has grown through 400 years of largely unplanned organic densification, punctuated by discontinuous RAJUK (Rajdhani Unnayan Kartripakkha) planned interventions at the neighbourhood scale. The coexistence of Moghul-era lane networks, post-independence planned sectors, river-radial development patterns, and informal agricultural-plot infill creates a morphological landscape that may not respond to standard Western classification frameworks.
+
+This report documents two connected stages of a research programme that confronted this challenge:
+
+\begin{itemize}
+    \item \textbf{Stage 1 (V1--V4, Sections 2--6):} A four-version methodological audit of unsupervised clustering applied to Dhaka's 1 km and 2 km grid cells, progressively correcting identified failures and characterising what the data actually supports.
+    \item \textbf{Stage 2 (GAT Extension, Sections 7--9):} The Graph Attention Topology (GAT) pipeline, which extends the V3 clustering findings from zone-level morphological classification to intersection-level vulnerability identification using exact betweenness centrality on real OSM road graphs across 790 zones and 338,429 intersections.
+\end{itemize}
+
+The report argues that the conjunction of these two stages --- morphological clustering (V3) and intersection-level betweenness analysis (GAT) --- produces a richer policy output than either approach alone. The V3 cluster label provides the structural context (what kind of network is this zone?); the GAT betweenness score provides the consequence (which intersection, if disrupted, causes the most damage?). Together they constitute a topology-aware attention framework in which the same betweenness score carries different policy weight depending on the zone's structural type.
+
+\subsection{Dhaka as a Research Context}
+
+Dhaka's road network presents five historically distinct morphological logics operating simultaneously in the same geographic space: river-radial development from the Buriganga and Turag ghats; Moghul-era organic bazaar lane networks in the historic core; RAJUK post-independence sector grids (Dhanmondi, Gulshan, Uttara DOHS); ribbon development along arterial roads; and informal agricultural-plot infill in peri-urban transition zones. Unlike European cities where these logics tend to be spatially segregated at the district level, in Dhaka they are interleaved at the block level. A 1 km grid cell in Dhanmondi simultaneously contains planned rectangular super-blocks, curved lake-perimeter roads, and informal lanes behind housing blocks. No single archetype describes the mixture.
+
+This interleaving has a direct consequence for quantitative analysis: features designed to discriminate morphological types in European cities tend to produce unimodal distributions in Dhaka. The most prominent example in this study is orientation entropy, which failed as a discriminator across all four versions despite being theoretically well-motivated and empirically effective in Boeing's \cite{boeing2021} 100-city global analysis.
+
+\subsection{Research Objectives}
+
+This study pursued four connected objectives across its two stages:
+
+\begin{enumerate}
+    \item Extract Dhaka's road network topology at the zone level with maximum completeness and methodological rigour, correcting identified failures in OSM extraction, feature computation, and clustering labelling.
+    \item Determine whether Dhaka's road network supports the four-archetype typology (Maze, Grid, Radial Corridor, Periphery) proposed in the original framework, and characterise the actual clustering structure if it does not.
+    \item Extend the zone-level classification to the intersection level by computing exact betweenness centrality for every OSM intersection across all valid zones, identifying the highest-priority structural bottlenecks in the network.
+    \item Establish the analytical relationship between V3 morphological cluster membership and GAT betweenness concentration, providing the joint framework that constitutes the TCGA (Topology-Conditioned Graph Attention) policy-targeting contribution.
+\end{enumerate}
+
+\section{RELATED WORK}
+
+\subsection{Urban Network Typology and Classification}
+
+Badhrudeen et al. \cite{badhrudeen2022} classified 48 global cities into three structural archetypes using geometric deep learning: gridded ($Gini < 0.3$, high resilience), radial (hub vulnerability), and organic (3.7$\times$ faster fragmentation under node removal). This framework builds on earlier European studies by Porta et al. (2006) and Jiang and Claramunt (2004), which established morphological classification vocabularies for Western-planned cities. Boeing \cite{boeing2021} demonstrated orientation entropy's discriminative power across 100 global cities, finding clear bimodal distributions in grid-planned cities (Portland, Chicago) versus high-entropy distributions in organic cities (Rome, Cairo).
+
+However, these typologies face challenges in Global South megacities. Rahman and Hasan \cite{rahman2023} validated archetype classifications in Dhaka—Old Dhaka shows 3.2$\times$ higher sensitivity to node removal than Dhanmondi—but did not translate topology into policy guidance. Sabzekar et al. \cite{sabzekar2023} exposed fundamental benchmarking flaws at the inter-city scale. Wang et al. \cite{wang2020} quantified extreme intra-urban heterogeneity across 12 cities (GWCC 58.7--99.2\%; Gini 0.28--0.79 within single cities), yet Levinson et al. \cite{levinson2022} found that planners across 200+ Global South transport plans treat this heterogeneity as noise, applying uniform interventions across structurally distinct zones.
+
+\subsection{Spatial Partitioning and Scale}
+
+On spatial partitioning methodology: Casali and Heinimann \cite{casali2019} showed naive clipping inflates boundary-node betweenness by up to 40\%; He et al. \cite{he2023} established 800m buffers as optimal for Asian megacity analysis ($>$90\% local trip capture). Boeing \cite{boeing2017, boeing2021} demonstrated buffered grids outperform administrative units for topology analysis, a finding validated across multiple urban contexts.
+
+\subsection{Betweenness Centrality and Structural Vulnerability}
+
+Freeman \cite{freeman1977} introduced betweenness centrality as a measure of node importance in social networks. Brandes \cite{brandes2001} provided the exact $O(n \cdot m)$ algorithm enabling city-scale computation. Barthélemy \cite{barthelemy2011} argued betweenness is the most policy-relevant topological property in road networks: zones with high betweenness concentration face network-wide failure from single-node removal, while distributed betweenness zones exhibit resilience to local disruptions.
+
+Recent GNN-based traffic prediction work \cite{ma2023, zhou2022} achieves strong forecasting performance but does not identify which physical intersections to upgrade—a gap between prediction and intervention that motivates intersection-level vulnerability analysis.
+
+\subsection{Equity and Transport Justice}
+
+Lucas et al. \cite{lucas2021} demonstrate that topological vulnerability maps directly onto social disadvantage—fragile maze zones carry the heaviest burden from pricing and routing policies. This establishes the equity imperative for topology-aware infrastructure targeting: uniform interventions risk amplifying existing spatial inequalities.
+
+\subsection{Research Gap}
+
+While inter-city network classification has advanced, and visual attention systems detect pixel-level risk, neither addresses intra-urban heterogeneity or enables graph-native criticality ranking conditioned on local structural context. This study addresses that gap for Dhaka.
+
+\section{DATASET AND STUDY AREA}
+The study area spans $23.65^{\circ}N-23.95^{\circ}N$, $90.25^{\circ}E-90.48^{\circ}E$ (~306 km²), extended north from the proposed $23.85^{\circ}N$ to include Uttara, DOHS. OSM data was extracted via OSMnx with \texttt{network\_type='all'} (changed from \texttt{'drive'} in V2 to capture Old Dhaka's goli lane network). Grid tiling: $1~km\times1$ km UTM cells with 800m buffers \cite{he2023}; features computed on buffered subgraphs, spatial labels on core cells. V3 yields 827 zones; 790 remain after removing 32 with < 30 nodes. OSM accuracy validated at 92.7\% for Dhaka \cite{hassanzadeh2023}. The DRNTF-2025 dataset \cite{galib2025}---27 features per zone, cluster assignments, and all GAT outputs (\texttt{all\_zones\_summary.csv}: 822 rows; \texttt{all\_nodes\_bc.csv}: 338,429 rows)---is archived at Zenodo under CC BY 4.0.
+
+\section{STAGE 1: CLUSTERING AUDIT METHODOLOGY}
+
+
+\subsection{Feature Engineering}
+
+Twenty-seven features per zone in four groups: structural topology (density, transitivity, avg\_degree, gwcc\_pct, n\_wcc, gsce\_pct); connectivity (orientation\_entropy, wcc\_fragmentation, hub\_dominance\_ratio, path\_length\_p90\_norm, betweenness\_gini—all introduced in V2); centrality (mean\_betweenness, mean\_closeness, mean\_katz, mean\_pagerank, global\_efficiency, local\_efficiency); metadata. Three V1 features were removed or corrected: reciprocity (saturated at 0.98—not discriminative), raw Gini (formula error, corrected V2), raw path\_length ($r = 0.86$ with node\_count, replaced by normalised version).
+
+\subsection{Clustering Configuration}
+
+PCA reduction to two components ($\geq$ 94\% cumulative variance). K-Means $k$ selected by Silhouette \cite{rousseeuw1987}, Calinski-Harabasz \cite{calinski1974}, and elbow method. Comparison algorithms: DBSCAN (54 parameter configurations per version, 216 total) and GMM ($k = 2 - 8$). Table 1 summarises all four versions and the algorithm comparison.
+
+\textbf{Critical methodological progression across V1--V4:} V1 used network\_type='drive', producing a 9.3$\times$ node-count inversion where Old Dhaka's organic core appeared sparser than planned periphery—a data extraction failure, not morphological reality. V2 corrected this with network\_type='all', capturing footpaths and goli lanes. V3 removed imposed archetype labels (Maze, Grid, Radial, Periphery), testing whether Western classification frameworks applied. V4 scaled to 2 km cells, testing neighbourhood-level coherence. Each correction systematically isolated confounding variables while preserving the core finding: $k = 2$ dominates every version (silhouette 0.366--0.551), DBSCAN collapses to one cluster across all 216 configurations, confirming a connectivity spectrum rather than discrete typology.
+
+\begin{table*}[t]
+\caption{V1-V4 Configuration and Algorithm Comparison}
+\begin{tabular}{llllllll}
+\toprule
+Version & Grid & Network & Zones & Sil. $k=2$ & Sil. $k=4$ & DBSCAN & Split C0/C1 \\
+\midrule
+V1 & 1 km & drive & 469 & 0.366 & 0.238 & 1 cluster & $57/43$ \\
+V2 & 1 km & all & 821 & 0.420 & 0.293 & 1 cluster & $79/21$ \\
+V3 $\star$ & 1 km & all & 827 & 0.408 & 0.284 & 1 cluster & $78/22$ \\
+V4 & 2 km & all & 226 & 0.551 & 0.211 & 1 cluster & $91/9$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+$\star$ Production version. $k=4$ scored 25-35\% below $k=2$ in every version. DBSCAN collapsed to one cluster across all 216 configurations. GMM produced 6 unstable clusters (silhouette 0.046).
+
+\section{STAGE 1 RESULTS: CONNECTIVITY SPECTRUM}
+
+\subsection{Four-Archetype Hypothesis Refuted}
+
+K-Means with $k = 2$ produced the highest silhouette in every version (0.366--0.551). The proposed $k = 4$ scored 25--35\% below $k = 2$ in every version. DBSCAN's complete failure across 216 configurations is the clearest evidence: Dhaka's zones form a continuous distribution in feature space (visible in Figure 2), not discrete high-density clumps separated by voids. The persistent $k = 2$ result represents the optimal binary cut of this spectrum, not evidence of two distinct morphological populations. Four methodological corrections across V1--V4 confirm the finding survives every adjustment.
+
+\subsection{Cluster Profiles: What the Two Ends of the Spectrum Look Like}
+Table 2 shows the full V3 cluster profiles with Mann-Whitney significance tests.
+
+\begin{table*}[t]
+\caption{V3 Cluster Feature Profiles - Key Features ($n\ge30$; Mann-Whitney significance)}
+\begin{tabular}{p{2.5cm}llll}
+\toprule
+Feature & Cluster\_0 & Cluster\_1 & Sig. & Interpretation \\
+\midrule
+Node Count (mean) & 59.1 & 544.3 & *** & C0: small sub-graphs; C1: large connected nets \\
+GWCC\% & 76.1\% & 92.7\% & *** & C0: ~24\% of nodes cannot reach main net \\
+WCC Fragmentation & 0.083 & 0.020 & *** & C0: high isolation; C1: near fully connected \\
+Global Efficiency & 0.256 & 0.108 & *** & Apparent paradox---small-graph artefact (§5.3) \\
+Betweenness Gini & 0.578 & 0.675 & *** & C1: routing concentrated at key junctions \\
+Transitivity/Mean Deg. & 0.066/4.16 & 0.040/4.79 & *** &  \\
+Orientation Entropy & 3.633 & 3.580 & ns & Fails to discriminate---see §5.4 \\
+Confidence Score & 0.727 & 0.807 & & C1 zones more cleanly separated \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+C0: $n=147$ $(18.6\%)$. C1: $n=643$ $(81.4\%)$. *** $p<0.001$; $ns=$ not significant. Two-sided Mann-Whitney U. Italicised features fail to discriminate. Cluster\_0 (fragmented peripheral fringe) consists of small isolated sub-graphs---incomplete road construction at the urban edge. Cluster\_1 (dense organic core) is continuously connected, with routing concentrated at a few key junctions (high Gini). Old Dhaka, Dhanmondi, Tejgaon, Gulshan, Mirpur, and Mohammadpur all fall in Cluster 1.
+
+\subsection{The Global Efficiency Paradox}
+
+Cluster 0 shows higher global efficiency (0.256 vs. 0.108) despite being the fragmented cluster. This resolves immediately: global efficiency = $(1/n(n-1))\sum 1/d(u, v)$ is trivially high in a 40-node subgraph with short paths. Cluster\_0's mean of 59 nodes vs. Cluster\_1's 544 drives the reversal. The meaningful fragility measures for C0 are GWCC\% (76.1\%) and wcc\_fragmentation (0.083): a quarter of nodes are in isolated sub-graphs with no path to the main network.
+
+
+\subsection{Why Orientation Entropy Failed}
+
+Boeing \cite{boeing2021} demonstrated orientation entropy's power across 100 global cities where planned grids produce low entropy and organic cities produce high entropy with clear bimodal separation. In Dhaka, five historical morphological logics are spatially interleaved at the block level. A 1 km cell in Dhanmondi contains planned super-blocks, curved lake-perimeter roads, and informal lanes simultaneously producing entropy (3.123) comparable to Old Dhaka (3.356) or Gulshan (4.012). This overlap is not noise; it is the geometric signature of Dhaka's layered development history.
+\subsection{Geographic Pattern}
+
+The cluster boundary is geographically stable across all four versions (Figure 1). The central spine (90.35$^\circ$--90.40$^\circ$E) has the lowest Cluster\_0 concentration (9\%); the eastern fringe (90.45$^\circ$--90.48$^\circ$E) the highest (29\%). Latitudinally, the southern periphery (23.65$^\circ$--23.70$^\circ$N) is the most fragmented band (31\% C0). OSM completeness co-localises with Cluster\_0, confirming peripheral fragmentation is structural, not a mapping gap (Figure 1, right panel).
+
+\subsection{The Connectivity Spectrum as Classification Axis}
+
+The features that consistently separate clusters are connectivity measures: global efficiency, gwcc\_pct, wcc\_fragmentation, betweenness\_gini. Features designed to detect morphological type—orientation\_entropy ($r = 0.020$, $p = 0.584$), hub\_dominance\_ratio—fail to discriminate. This is the core empirical finding: what varies across Dhaka's zones is not how roads are arranged geometrically, but how well they connect. The global efficiency gap (0.108 vs. 0.256 in V3) represents a 2.4$\times$ accessibility difference with direct transport policy implications that archetype frameworks would miss. This is consistent with Barthélemy \cite{barthelemy2011}: the policy-relevant urban network distinction is betweenness concentration (single-point failure) versus distributed resilience, not grid versus organic geometry.
+
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1\linewidth]{fig 1.png}
+    \Description{Clustering figure showing the relevant data or results.}
+    \caption{V3 cluster map (left) and OSM completeness (right). Green = Cluster_1 (organic core); red = Cluster_0 (fragmented fringe). The boundary is stable across all four versions. The central corridor (90.35°–90.45°E) is consistently Cluster_1; peripheral zones co-locate with lower OSM completeness, confirming fragmentation is genuine rather than a coverage artefact.}
+    \label{Fig 1}
+\end{figure*}
+
+
+
+
+
+\section{STAGE 2: GAT PIPELINE METHODOLOGY}
+
+\subsection{Betweenness Centrality as Structural Attention}
+
+For $G = (V, E)$, the betweenness centrality of node $v$ is $BC(v) = \sum_{\{s \neq v \neq t\}} \sigma(s, t|v) / \sigma(s, t)$, where $\sigma(s, t)$ is total shortest paths from $s$ to $t$. $BC \in [0, 1]$. The term 'graph attention' is used analytically: BC identifies which intersections the network structurally attends to—routing a disproportionate fraction of paths through mandatory waypoints. An articulation point is a node whose removal increases the number of weakly connected components—existential connectivity risk, as distinct from BC's routing concentration. These two fragility dimensions are orthogonal (§7.3).
+
+\textbf{Node tiers by betweenness percentile:} Tier 1 = top 1\% (master node); Tier 2 = 1--5\%; Tier 3 = 5--25\%; Tier 4 = below P25. The master node is the single highest-BC intersection per zone, identified by OSM node ID and GPS coordinates (23.842°N, 90.387°E for Zone\_DH547).
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1\linewidth]{fig 2.jpg}
+    \caption{PCA feature space (two components, ≥94 percent variance). Both panels show the same data. The absence of a clear void between clusters is consistent with DBSCAN's single-cluster result across all 216 configurations: Dhaka's zones form a continuous distribution along PC1 (the connectivity axis), not two discrete populations.}
+    \label{fig:2}
+\end{figure*}
+
+\subsection{The TCGA Conditioning Logic}
+
+A BC value of 0.40 carries different policy significance depending on context: in a 30-node C0 sub-graph it is likely small-graph inflation (BC grows as $O(1/n^2)$); in a 300-node C1 zone it is a genuine bottleneck. TCGA applies three steps: (1) V3 cluster assignment provides structural context; (2) exact BC via Brandes $O(n \cdot m)$ \cite{brandes2001} on undirected NetworkX graphs (road length as weight); (3) size-conditioned adjustment $BC' = BC/\sqrt{n}$ removes inflation for cross-zone ranking. Per-zone outputs: BC and tier (Tier 1: top 1\%; T2: 1--5\%; T3: 5--25\%; T4: below P25)
+
+\section{STAGE 2 RESULTS: INTERSECTION-LEVEL VULNERABILITY}
+
+\subsection{City-Wide Statistics and Cluster Comparison}
+
+Across 790 zones (338,429 nodes), mean max $BC = 0.380 \pm 0.132$ (median: 0.374). One intersection controls 38\% of zone routing on average. Table 3 provides the full summary alongside the cluster-level comparison.
+
+C0's higher mean BC reflects small-graph inflation (mean 59 nodes vs. C1's 544; BC-node\_count Spearman $r = -0.705$, $p < 0.001$). C1 zones dominate genuine bottleneck targets at $n \geq 100$. Figure 3 shows the city-wide distribution. The BC histogram is broad and bimodal, reflecting the full connectivity spectrum. The BC-articulation point scatter ($r = -0.604$) reveals two orthogonal fragility modes: high-BC zones have one dominant junction; high-articulation-point zones have many latent cut vertices. The most dangerous targets exhibit both.
+
+\begin{table*}[t]
+\caption{City-Wide BC Statistics and Cluster-Level Comparison ($n=790$ zones)}
+\begin{tabular}{lllll}
+\toprule
+Metric & CityWide & Cluster\_0 & Cluster\_1 & Stat. Test \\
+\midrule
+Max BC (mean $\pm$ std) & $0.380\pm0.132$ & $0.507\pm0.100$ & $0.351\pm0.120$ & $p=3.97\times10^{-36}$ \\
+Median max BC & 0.374 & 0.521 & 0.330 & Cohen's $d=1.41$ \\
+BC range & 0.137-0.711 & & & \\
+Zones: $BC\ge0.50$ & 180 (22.8\%) & & & \\
+Zones: $BC\ge0.60$ & 36 (4.6\%) & & & \\
+Mean art. points & 97/zone & 17.8 & 119.9 & $p=1.49\times10^{-7}$ \\
+Art. pt. ratio (C1/C0) & & & 6.7x & \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1\linewidth]{fig 3.jpg}
+    \caption{City-wide betweenness distributions (n = 790). Left: max BC per zone (mean = 0.387). Centre: articulation points per zone (mean = 97). Right: max BC vs. articulation points (Spearman r = −0.60, p < 0.001) — two orthogonal fragility dimensions. High-BC/low-artpt zones have one dominant junction; low-BC/high-artpt zones have many latent cut vertices.}
+    \label{fig:placeholder}
+\end{figure*}
+
+\subsection{The Two Fragility Dimensions}
+\label{subsec:two_fragility}
+
+The negative correlation between max BC and articulation points ($r = -0.60$, $p < 0.001$) reveals two structurally distinct fragility mechanisms:
+
+\textbf{Betweenness concentration fragility:} Zones with very high max BC ($\geq 0.50$) are vulnerable to targeted disruption of one dominant junction. A single flood, construction closure, or accident at the master node imposes city-wide detour penalties. Structurally associated with C0 zones: small sub-graphs where one node is the mandatory bridge.
+
+\textbf{Articulation point fragility:} Zones with many articulation points ($>200$) are vulnerable to random failure anywhere. Every branch root is a cut vertex. Structurally associated with C1 zones: large tree-like organic networks where every main-route junction is a potential disconnection point.
+
+Neither dimension alone suffices for policy targeting. High BC with few articulation points (C0 common): one critical intersection, many redundant connections. Many articulation points with moderate BC (C1 common): distributed vulnerability, no dominant target. The most dangerous zones exhibit both: large continuously connected networks with one structurally mandatory junction.
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{Zone_DH136_hierarchy.png}
+    \caption{Zone\_DH136 (Uttara DOHS, n=760, BC=0.175): distributed resilience pattern. Master node controls only 17.5\% of routing with 8 Tier-1 nodes (red) and 30 Tier-2 nodes (orange) spreading the load. High articulation points (80) but low BC concentration—orthogonal fragility dimensions.}
+    \label{fig:zone_dh136}
+\end{figure}
+
+Figure~\ref{fig:zone_dh136} illustrates this orthogonality. Zone\_DH136 exhibits 80 articulation points (high articulation-point fragility) but only BC = 0.175 (low betweenness-concentration fragility), demonstrating that the two dimensions vary independently.
+
+\begin{table*}[t]
+\caption{Spearman Correlations: Maximum BC vs. V3 Features ($n=790$)}
+\begin{tabular}{llllll}
+\toprule
+Feature & r & p & Feature & r & p \\
+\midrule
+Mean Betweenness Cent. & +0.752 & <0.001 & Node Count & -0.705 & <0.001 \\
+Network Density & +0.689 & <0.001 & Global Efficiency & +0.650 & <0.001 \\
+WCC Fragmentation & +0.634 & <0.001 & Articulation Points & -0.604 & <0.001 \\
+Path Length P90 (norm) & +0.588 & <0.001 & Mean Degree & -0.511 & <0.001 \\
+Transitivity & +0.263 & <0.001 & Betweenness Gini & -0.220 & <0.001 \\
+Local Efficiency & +0.162 & <0.001 & Hub Dom. Ratio & +0.064 & 0.072 ns \\
+Orientation Entropy & +0.020 & 0.584 ns & & & \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+ns = not significant ($p>0.05$). Italicised = null results. All others $p<0.001$.
+
+\subsection{Geographic Pattern: Peripheral Fragility Paradox}
+
+Figure 4 (master node map) reveals that fragility concentrates at the urban periphery, not the historic core. The central spine (90.35$^\circ$--90.40$^\circ$E) has the lowest mean max BC (0.330) and lowest C0 share (9\%). The eastern fringe (90.45$^\circ$--90.48$^\circ$E) has mean $BC = 0.441$ and 29\% C0. The southern periphery (23.65$^\circ$--23.70$^\circ$N) is the most fragile latitudinal band ($BC = 0.427$, 31\% C0). 
+
+The explanation: Old Dhaka's apparent chaos conceals a highly redundant network. Zone\_DH468 (873 nodes): max $BC = 0.194$—hundreds of parallel paths distribute routing load. Peripheral zones are trees: each branch connects through one root junction that achieves extreme BC. Zone\_DH547 (Kafrul corridor, 242 nodes): max $BC = 0.609$—one intersection mediates 61\% of routing in a continuously connected organic network; small-graph inflation cannot explain this.
+
+\begin{table}[h]
+\caption{Tier-A Genuine Structural Bottlenecks: Cluster\_1, $BC\ge0.58$}
+\begin{tabular}{llllll}
+\toprule
+Zone & Max BC & Nodes & Art. Pts & Lat °N & Lon °E \\
+\midrule
+Zone DH860 & 0.705 & 96 & 41 & 23.835 & 90.475 \\
+Zone DH801 & 0.671 & 70 & 27 & 23.929 & 90.462 \\
+Zone DH779 & 0.642 & 174 & 73 & 23.732 & 90.464 \\
+Zone DH816 & 0.649 & 68 & 37 & 23.750 & 90.471 \\
+Zone DH761 & 0.623 & 128 & 62 & 23.883 & 90.449 \\
+Zone DH387 & 0.627 & 107 & 40 & 23.664 & 90.361 \\
+Zone DH547 $\star$ & 0.609 & 242 & 57 & 23.849 & 90.395 \\
+Zone DH189 & 0.604 & 139 & 37 & 23.773 & 90.303 \\
+Zone DH133 & 0.595 & 244 & 85 & 23.901 & 90.275 \\
+Zone DH080 & 0.601 & 93 & 30 & 23.737 & 90.272 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+$\star$ Primary case study. All zones are Cluster\_1 (continuously connected). Node counts $\ge68$ rule out small-graph inflation for $BC\ge0.60$.
+
+
+
+\section{DISCUSSION}
+\subsection{Dhaka as a Connectivity Spectrum}
+
+The DBSCAN failure is the most informative single result in the audit. Global typology theory \cite{badhrudeen2022} was derived from cities where distinct morphological logics are spatially segregated at the district scale. In Dhaka, five logics are interleaved at the block level \cite{revi2011}. No 1 km cell is morphologically homogeneous; no archetype describes any cell completely. The two-cluster K-Means result is the optimal binary cut of a continuous distribution consistent with Taubenböck et al. \cite{taubenbock2017} (Delhi below the ward level) and Revi et al. \cite{revi2011} (South Asian megacity palimpsests).
+
+DBSCAN collapsed to a single cluster in every version across all 216 parameter configurations. This is not a methodological failure—it is the geometric signature of a spectrum. DBSCAN identifies high-density regions in feature space separated by low-density voids. Its failure indicates Dhaka's zones form a continuous distribution, not discrete clumps. The persistent $k = 2$ result represents the optimal binary split of this continuum, not evidence of two genuinely distinct morphological populations.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{fig 4.png}
+    \caption{City-wide master node map (822 zones). Dot color: dark red = low BC, white/yellow = high (≥0.65). Highest-BC zones cluster at the north-east fringe (90.43°–90.47°E) and periphery generally. The central spine shows consistently moderate-to-low BC — the peripheral fragility paradox: the most historically congested area is structurally the most resilient.}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsection{Why TCGA Needs Both Stages}
+
+The orientation entropy independence ($r = 0.02$; $p = 0.58$) is the analytical cornerstone. V3 alone identifies Zone\_DH547 as C1 but cannot locate the specific critical intersection. GAT alone gives the exact BC and GPS coordinates but cannot distinguish genuine bottlenecks from small-graph inflation. TCGA provides both: structural context (C1, $n = 242$, continuously connected) + exact target (23.842$^\circ$N, 90.387$^\circ$E, $BC = 0.609$). The policy question—where exactly to build a secondary access road?—is unanswerable from either stage alone.
+
+Figure~\ref{fig:zone_dh052} provides visual evidence of the conditioning logic. The master node (green star) controls 36.5\% of routing in a 183-node network, while 50 articulation points distribute disconnection risk. This dual structure—routing concentration at one node, existential fragility distributed across many—cannot be captured by either BC or articulation point count alone.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{Zone_DH052_hierarchy.png}
+    \caption{Node importance hierarchy for Zone\_DH052 (Dhanmondi sector, 183 intersections, max BC = 0.365). Master node (green star) at 23.798$^\circ$N, 90.265$^\circ$E controls 36.5\% of routing. The tier structure shows 2 Tier-1 nodes, 8 Tier-2 nodes (orange), and 50 articulation points, demonstrating that betweenness concentration and articulation point fragility are orthogonal dimensions.}
+    \label{fig:zone_dh052}
+\end{figure}
+
+TCGA provides both: structural context (C1, $n = 242$, continuously connected) + exact target...
+
+\textbf{Why neither stage alone is sufficient:} V3 identifies morphologically distinct zones but cannot pinpoint which specific intersection is the bottleneck. GAT provides intersection-level BC scores but does not adjust for structural context that determines whether those scores represent genuine risk or small-graph inflation. The same BC value of 0.40 means fundamentally different things: in a 30-node C0 zone it reflects small-graph inflation (BC grows as $O(1/n^2)$); in a 300-node C1 zone it is a genuine network-scale bottleneck requiring infrastructure intervention.
+
+\subsection{The TCGA Re-Weighting Logic}
+
+The Topology-Conditioned Graph Attention framework operates in three steps:
+
+\textbf{(1) Morphological typing (V3):} Each zone is assigned to Cluster\_0 (fragmented peripheral) or Cluster\_1 (organic connected) based on 27 topological features, providing structural context.
+
+\textbf{(2) Raw betweenness computation (GAT):} Exact betweenness centrality computed for every intersection via Brandes $O(n \cdot m)$ \cite{brandes2001}, yielding master nodes and tier structure.
+
+\textbf{(3) Topology-conditioned adjustment:} $BC_{adjusted} = BC_{raw} \times (cluster\_weight) / \sqrt{node\_count}$. Cluster\_1 zones receive higher cluster weight, reflecting that high BC in large connected organic networks represents more severe real-world risk than the same value in small fragmented sub-graphs.
+
+\subsection{Marginal Returns on Infrastructure Investment}
+
+The findings suggest the marginal return on road network resilience investment is orders of magnitude higher at the peripheral fringe than in the central corridor. One new access road in Zone\_DH779 ($BC = 0.642$, $n = 174$, 73 articulation points) reduces its master node BC from 0.642 to near zero and eliminates 73 single points of disconnection. The equivalent investment in central Dhanmondi ($BC = 0.378$) reduces an already-distributed bottleneck to 0.340. This does not argue against central investment generally—Metro Line 6 serves hundreds of thousands of daily users—but it reframes the priority for road network resilience spending specifically.
+
+\textbf{Three-tier policy framework:}
+
+\textbf{Tier A — Immediate structural intervention:} The 10 high-BC Cluster\_1 zones (Table 5), particularly Zone\_DH547 and Zone\_DH779. Large organic networks where one intersection mediates majority routing. Physical duplication (alternative routes, flyovers, secondary lane upgrades) directly reduces BC and improves resilience.
+
+\textbf{Tier B — Connectivity completion:} Cluster\_0 fragmented peripheral zones with high wcc\_fragmentation. These need new road links joining isolated sub-graphs to the main network—not intersection improvements at existing nodes, but new connections. V3 gwcc\_pct and wcc\_fragmentation features quantify exactly how much connectivity is missing.
+
+\textbf{Tier C — Traffic management:} The 180 zones with max $BC \geq 0.50$ (22.8\% of all zones). Vulnerable to bottleneck effects but may not require immediate capital investment. Signal optimisation, turn restrictions, event routing protocols can reduce effective BC without infrastructure spending.
+
+\subsection{The Inversion of the Density Assumption}
+
+A consistent finding across both V3 clustering and GAT analysis is that structural vulnerability concentrates at the urban periphery, not the historically dense core. The central corridor (90.35$^\circ$--90.40$^\circ$E, 23.75$^\circ$--23.85$^\circ$N)—Dhanmondi, Tejgaon, Motijheel—has the lowest mean max BC (0.330) and lowest C0 concentration (9\%).
+
+This inverts the conventional assumption that population density and road network density predict structural vulnerability. Old Dhaka's apparent chaos—narrow lanes, irregular geometry, high orientation entropy—conceals a highly redundant network where alternative routes are plentiful. Peripheral zones, which appear more orderly on satellite imagery (fewer but wider roads), are structurally more fragile because they are organised as trees: every branch connects through one root junction.
+
+\textbf{Policy implication:} Transport investment in Dhaka has historically concentrated in the central corridor (flyovers, mass transit, arterial widening) where political and economic visibility is highest. TCGA analysis suggests highest marginal return on network resilience is in peripheral north-east (90.43$^\circ$--90.47$^\circ$E) and south-west (90.25$^\circ$--90.30$^\circ$E) fringe zones—areas with extreme BC concentration in small fragmented sub-graphs and low redundancy. One new access road in Zone\_DH793 or Zone\_DH860 reduces master node BC from above 0.69 to near zero.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{fig 5.jpg}
+    \caption{TCGA Full Network Criticality Map}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsection{Connectivity Versus Geometry: The Orthogonal Dimensions}
+
+Across all four versions, features that consistently separate clusters are connectivity measures: global\_\allowbreak efficiency, gwcc\_\allowbreak pct, wcc\_\allowbreak fragmentation, betweenness\_\allowbreak gini. Features designed to detect morphological type—orientation\_\allowbreak entropy ($r = 0.02$, $p = 0.58$), hub\_\allowbreak dominance\_\allowbreak ratio ($r = 0.06$, $p = 0.07$)—fail to discriminate.
+
+This is not trivial. What varies most between Dhaka's 1 km grid cells is not how roads are arranged geometrically, but how well they connect. The global efficiency gap (0.108 vs. 0.256 in V3) represents a 2.4$\times$ accessibility difference: Cluster\_0 zones require navigating 3--4$\times$ more steps between any two nodes than Cluster\_1 zones. This has direct transport policy implications the archetype framework would miss.
+
+Connectivity-level clustering is consistent with Barthélemy \cite{barthelemy2011}: the policy-relevant urban network distinction is betweenness concentration (single-point failure) versus distributed betweenness (resilience to local disruptions), not grid versus organic geometry. Our betweenness\_gini results confirm this as the meaningful discriminator for Dhaka.
+
+\subsection{Limitations}
+
+(1) Zone boundary effects: each zone is an independent subgraph; cross-zone routing is not modelled. (2) Small-graph inflation: TCGA applies $\sqrt{n}$ re-weighting but cluster-specific normalisation from simulation would be more rigorous. (3) Static snapshot: the 2025 OSM network will change as Metro Line 6 completes and RAJUK projects proceed.
+
+\section{CONCLUSION}
+
+The V1--V4 audit established that Dhaka's road network organises along a connectivity spectrum, not four discrete archetypes. K-Means $k = 2$ was optimal across all versions (silhouette 0.366--0.551); DBSCAN collapsed to one cluster in all 216 configurations. Four methodological corrections confirmed the finding is robust: Dhaka exhibits a continuous distribution from dense connected core (78--81\%) to fragmented peripheral fringe (19--22\%), not Western morphological types.
+
+The GAT extension established three results: one intersection controls a mean of 38\% ($\pm$ 13\%) of zone routing; orientation entropy is independent of betweenness ($r = 0.02$; $p = 0.58$)—street geometry and routing vulnerability are orthogonal; and fragility concentrates at the periphery, not the historic core. Zone\_DH547 (Kafrul, 242 nodes): one intersection at 23.842$^\circ$N, 90.387$^\circ$E mediates 61\% of routing.
+
+TCGA combines both stages: V3 provides structural context (which cluster?); GAT provides exact targets (which intersection?). Neither alone suffices—V3 cannot locate specific bottlenecks; GAT cannot distinguish genuine risk from small-graph inflation (BC grows as $O(1/n^2)$). The conjunction produces GPS-locatable, policy-actionable bottleneck rankings conditioned on topology: $BC_{adjusted} = BC_{raw} \times (cluster\_weight) / \sqrt{node\_count}$.
+
+Policy implications invert conventional assumptions: highest marginal return on resilience investment is at the peripheral fringe, not central corridor. One access road in Zone\_DH779 (BC = 0.642, 73 articulation points) eliminates 73 disconnection points; equivalent investment in Dhanmondi (BC = 0.378) reduces an already-distributed bottleneck marginally.
+
+Three contributions: (1) empirical refutation of four-archetype typology via systematic 216-configuration audit; (2) first city-scale demonstration that geometry and vulnerability are orthogonal ($r = 0.02$); (3) intersection-level vulnerability framework combining morphological context with exact betweenness. The DRNTF-2025 dataset \cite{galib2025} provides 338,429 intersections with GPS coordinates, betweenness scores, and tier assignments—every finding is verifiable, every target is actionable. All code and data released open-source.
+
+\bibliographystyle{ACM-Reference-Format}
+\begin{thebibliography}{45}
+
+
+\bibitem{boeing2021} Boeing, G. 2021. Street network orientation, configuration, and entropy. \textit{Environment and Planning B: Urban Analytics and City Science} 48, 8, 2205--2222. https://doi.org/10.1177/2399808320918133
+
+\bibitem{badhrudeen2022} Badhrudeen, M., Derrible, S., Verma, T., Kermanshah, A., and Furno, A. 2022. A geometric classification of world urban road networks. \textit{Urban Science} 6, 1, 11. https://doi.org/10.3390/urbansci6010011
+
+\bibitem{rahman2023} Rahman, M.M. and Hasan, M.T. 2023. Graph neural networks for traffic flow prediction in Dhaka: A topology-aware approach. In \textit{Proceedings of the IEEE International Conference on Intelligent Transportation Systems (ITSC '23)}. https://doi.org/10.1109/ITSC57777.2023.10422345
+
+\bibitem{sabzekar2023} Sabzekar, S., Malakshah, M.R.V., and Amini, Z. 2023. Unsupervised learning for topological classification of transportation networks. \textit{arXiv preprint arXiv:2311.13887}. https://doi.org/10.48550/arXiv.2311.13887
+
+\bibitem{wang2020} Wang, M., Chen, Z., Mu, L., and Zhang, X. 2020. Road network structure and ride-sharing accessibility. \textit{Computers, Environment and Urban Systems} 80, 101430. https://doi.org/10.1016/j.compenvurbsys.2019.101430
+
+\bibitem{levinson2022} Levinson, D., Wu, Y., and Zhang, L. 2022. Urban street network structure and accessibility: A global analysis. \textit{Journal of Transport Geography} 104, 103456. https://doi.org/10.1016/j.jtrangeo.2022.103456
+
+\bibitem{casali2019} Casali, Y. and Heinimann, H.R. 2019. A topological analysis of growth in the Zurich road network. \textit{Computers, Environment and Urban Systems} 75, 244--253. https://doi.org/10.1016/j.compenvurbsys.2019.01.010
+
+\bibitem{he2023} He, Z., Liu, Y., Wang, J., and Chen, X. 2023. Buffer size selection for urban network analysis: Evidence from Beijing's road network. \textit{IEEE Transactions on Intelligent Transportation Systems} 24, 5, 5678--5689. https://doi.org/10.1109/TITS.2022.3224567
+
+\bibitem{boeing2017} Boeing, G. 2017. OSMnx: New methods for acquiring, constructing, analyzing, and visualizing complex street networks. \textit{Computers, Environment and Urban Systems} 65, 126--139. https://doi.org/10.1016/j.compenvurbsys.2017.05.004
+
+\bibitem{freeman1977} L.C. Freeman. 1977. Centrality based on betweenness. Sociometry 40, 1, 35--41.
+
+\bibitem{brandes2001} U. Brandes. 2001. A faster algorithm for betweenness centrality. Journal of Mathematical Sociology 25, 2, 163--177.
+
+\bibitem{barthelemy2011} M. Barthélemy. 2011. Spatial networks. Physics Reports 499, 1--3, 1--101.
+
+\bibitem{ma2023} Ma, T., Wang, Y., and Chu, C. 2023. Graph neural networks for urban traffic prediction: A survey. \textit{IEEE Transactions on Intelligent Transportation Systems} 24, 7, 7221--7237. https://doi.org/10.1109/TITS.2023.3245678
+
+\bibitem{zhou2022} Zhou, C., Xu, H., and Wang, J. 2022. Spatial-temporal graph transformer networks for traffic forecasting. In \textit{Proceedings of the AAAI Conference on Artificial Intelligence (AAAI '22)}, 4350--4358. https://doi.org/10.1609/aaai.v36i4.20334
+
+\bibitem{lucas2021} Lucas, K., van Wee, B., and Maat, K. 2021. A method to evaluate equitable accessibility: Combining space syntax and transport network analysis. \textit{Journal of Transport Geography} 90, 102923. https://doi.org/10.1016/j.jtrangeo.2020.102923
+
+\bibitem{hassanzadeh2023} Hassanzadeh, A. and Amini, Z. 2023. Topological validation of OpenStreetMap for transport network analysis in South Asian megacities. \textit{Journal of Transport Geography} 112, 103742. https://doi.org/10.1016/j.jtrangeo.2023.103742
+
+\bibitem{galib2025} M. Galib and M.S. Hossain. 2025. DRNTF-2025 Dataset. Zenodo. https://doi.org/10.5281/zenodo.[XXXXXXX]
+
+\bibitem{rousseeuw1987} Rousseeuw, P.J. 1987. Silhouettes: A graphical aid to the interpretation and validation of cluster analysis. \textit{Journal of Computational and Applied Mathematics} 20, 53--65. https://doi.org/10.1016/0377-0427(87)90125-7
+
+\bibitem{calinski1974} Calinski, T. and Harabasz, J. 1974. A dendrite method for cluster analysis. \textit{Communications in Statistics} 3, 1, 1--27. https://doi.org/10.1080/03610927408827101
+
+\bibitem{revi2011} A. Revi et al. 2011. Impact of climate change on cities. Environment and Urbanization 23, 2, 369--388.
+
+\bibitem{taubenbock2017} H. Taubenböck et al. 2017. A new ranking of the world's largest cities. Remote Sensing of Environment 198, 502--513.
+
+
+
+
+
+\end{thebibliography}
+\end{document}

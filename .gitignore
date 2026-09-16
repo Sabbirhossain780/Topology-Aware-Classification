@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Virtual environments
+tvenv/
+venv/
+.env/
+
+# OSM / data cache (auto-regenerated)
+cache/
+
+# Large binary model weights
+*.pt
+*.pth
+*.pkl
+
+# Large computed arrays (regeneratable from notebooks)
+*.npy
+
+# Dhaka topology: the notebook-based version is superseded and validated
+# against the pipeline (see 02_dhaka_road_topology/pipeline/README.md) —
+# only the pipeline source is tracked, not the old notebooks or their data.
+02_dhaka_road_topology/data/
+02_dhaka_road_topology/notebooks/
+02_dhaka_road_topology/outputs/
+02_dhaka_road_topology/gat/
+backup_original_topology/
+pipeline_outputs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,36 @@
+# Earliest iteration config — replaces dhaka_topology_v1.ipynb
+# Narrower bbox (misses Uttara/Diabari), drive-only network.
+name: v1
+
+bbox_north: 23.85
+bbox_south: 23.65
+bbox_east: 90.48
+bbox_west: 90.25
+network_type: drive
+
+crs_metric: EPSG:32646
+crs_geo: EPSG:4326
+
+zone_unit: grid
+cell_size_m: 1000.0
+buffer_m: 800.0
+min_nodes: 15
+
+betweenness_k: 50
+pagerank_alpha: 0.85
+katz_alpha: 0.1
+diameter_sample_n: 300
+bootstrap_n: 20
+cv_threshold: 0.35
+orientation_bins: 36
+
+k_min: 2
+k_max: 8
+pca_variance: 0.95
+random_state: 42
+dbscan_min_samples: 5
+
+uffm_enabled: false
+gat_enabled: false
+
+base_dir: ../../pipeline_outputs/v1
