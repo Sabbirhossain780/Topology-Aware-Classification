@@ -40,3 +40,9 @@ pipeline_outputs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Experiment intermediates: large, regeneratable in seconds by re-running the
+# experiment's own run.py. Derived summaries, figures and result.json ARE tracked.
+02_dhaka_road_topology/pipeline/experiments/11_city_mixture_map/windows.csv
+02_dhaka_road_topology/pipeline/experiments/13_morphology_criticality/nodes_morphology.csv
+02_dhaka_road_topology/pipeline/experiments/13_morphology_criticality/window_fragility.csv

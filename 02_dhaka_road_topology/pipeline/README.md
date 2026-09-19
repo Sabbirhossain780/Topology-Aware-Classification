@@ -244,16 +244,31 @@ analysis from what's tracked here.
 - [x] **Patch-scale mixture-ratio pilot** — done as Experiment 09. A 400m patch grid-score
       (orthogonal-pair spectral energy) is calibrated, density-decoupled and visually
       validated; within-zone variation is 3.0x between-zone variation on n=4 zones.
-- [ ] **Scale the patch metric to all 224 zones** (~5,600 patches, runs in minutes) — the live
-      research direction. The n=4 pilot cannot test whether *mixture ratio* varies between
-      zones even though morphology *type* does not; the full run can. See
-      `experiments/EXPERIMENTS.md` Experiment 09.
+- [x] **Scale the patch metric to all 224 zones** — done as Experiment 11: 89,600 sliding
+      windows in 16s. Mixture ratio DOES vary between zones (between-zone sd 0.107 vs
+      within-zone 0.216), survives density decorrelation with 79% of its spread, and stays
+      spatially coherent (neighbour corr +0.355 after correction).
+- [x] **Cross the mixture layer with betweenness/articulation data** — done as Experiment 13.
+      Principle 2 supported: in organic fabric the most critical nodes are 40% MORE likely to
+      be cut vertices than typical nodes there; in grid-like fabric 15% LESS likely. The sign
+      flips with local morphology, so the same betweenness rank means a structurally different
+      thing in each regime. Outputs: `13_morphology_criticality/nodes_morphology.csv`,
+      `window_fragility.csv`.
+- [ ] **Fix `tiling.py:112`** — `"lon": round(d.get("lon", d.get("x", 0)), 6)` falls back to
+      the PROJECTED x on an OSMnx graph, so the `lon`/`lat` columns in every zone's `nodes.csv`
+      actually hold UTM coordinates (both v3 and v2km). No analysis here is affected (all read
+      `x_utm`) and the port validation is unaffected, but anything downstream trusting those
+      columns gets nonsense. Found in Experiment 13.
+- [ ] **Multi-scale run (200/400/800m windows)** — the 400m window is chosen, not derived;
+      three rasters would test how fast Dhaka's fabric actually turns over.
 - [ ] Try a sliding patch window instead of a fixed lattice — a grid straddling two patch
       boundaries is currently penalised (Experiment 09 caveat)
 - [ ] **Fix UFFM's fingerprint comparison** — `uffm.py:161` uses linear-axis Wasserstein on a
-      circular bearing variable, making it rotation-VARIANT: two identical grids rotated 45°
-      apart score further apart than a grid and an organic network (Experiment 10, C8). This
-      is a candidate root cause for UFFM's documented null result, and the fix is small.
+      circular bearing variable, making it rotation-VARIANT: rotating a real zone moves it 20%
+      further than a genuinely different zone does (Experiment 12). Worth fixing regardless,
+      but Experiment 12 showed it is NOT the cause of UFFM's null result — UFFM's k=2 split is
+      a density split (η² density 0.36-0.49 vs η² morphology 0.01-0.04), entering through the
+      angle and length terms, not bearing.
 - [ ] **Add a spatial convergence measure for "radial"** — Experiment 10 (C7) showed radial has
       no stable angular signature, so it cannot come from the |c_k| descriptor at all.
 - [ ] Add a smoke config (`gat_max_zones` set low) for fast sanity checks

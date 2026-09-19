@@ -1,0 +1,11 @@
+{
+  "n_zones": 200,
+  "corr_all": 0.7243893733611318,
+  "corr_better_mapped_half": 0.6174491627188626,
+  "r2_completeness": 0.5247399642385333,
+  "raw_sd": 0.22943057194077066,
+  "residual_sd": 0.15816738554500562,
+  "rank_corr_raw_vs_residual": 0.7010690783313646,
+  "spatial_autocorr_raw": 0.7580530730840169,
+  "spatial_autocorr_residual": 0.5284214808847874
+}

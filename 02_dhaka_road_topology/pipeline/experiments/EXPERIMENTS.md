@@ -754,3 +754,341 @@ convergence measure, not as a fourth value of the same descriptor; and re-run UF
 rotation-invariant comparison to test whether its null result was this bug. Experiment 09's
 conclusion stands; its numbers are superseded by the vector recompute in
 `10_descriptor_validation/exp09_vector_recompute.csv`.
+
+---
+
+## Experiment 11 — City-wide morphology map: does mixture ratio vary across Dhaka?
+
+**Hypothesis:** Experiments 08-09 showed morphology *type* is not well defined at zone scale.
+The replacement question is whether the grid-vs-organic **mixture ratio** varies between zones.
+n=4 could not test that; 224 zones can.
+
+**Method:** vector-geometry scoring (Experiment 10's corrected primitive — exact,
+rotation-invariant, no rendering), 400m window at **100m sliding stride** rather than a fixed
+lattice, so a grid broader than one patch is no longer diced at the seams. Window centres are
+confined to each zone's 2km core while segments are drawn from the full buffered zone — the
+pipeline's existing two-tier design (Casali & Heinimann 2019) applied one scale down. Per-cell
+bearing histograms plus an integral image make each window O(180) instead of O(segments).
+True zone-grid centroids from `metadata.csv` (not node centroids, which would leave gaps and
+overlaps). Scripts: `11_city_mixture_map/run.py`, `decorrelate.py`.
+**Figures:** `city_mixture_map.png`, `completeness_confound.png`, `diagnostics.png`.
+
+**Scale:** 89,600 windows across 224 zones in **16 seconds**. 27,276 (30.4%) too sparse to
+score; 60,460 clean windows analysed.
+
+**Null:** a per-window permutation null is infeasible at this scale, so it was precomputed as a
+function of segment count and then **validated against exact segment-level nulls on 251 randomly
+chosen windows**: corr +0.761, mean error −0.010, max |error| 0.085. Usable.
+
+### Two errors in this experiment's own design, found by its own confound checks
+
+**Error 1 — the headline measure imported statistical power.** `mixture_ratio` was defined as
+the fraction of windows scoring above their null's 95th percentile. But **corr(null p95,
+segment count) = −0.843**: dense windows get a tighter null, so they are *easier to pass*
+regardless of morphology. That measure conflates effect size with statistical power.
+
+| Zone measure | corr with density |
+|---|---|
+| fraction above null p95 (**as first defined**) | **+0.724** |
+| fraction with excess > 0.15 (fixed effect size) | +0.555 |
+| **median excess (no threshold at all)** | **+0.511** |
+
+A quarter of the apparent confound was the threshold, not the data. **Median excess is the
+measure used for all conclusions below.**
+
+**Error 2 — `osm_completeness` is not a completeness fraction.** It is observed node density
+divided by a 40 nodes/km² baseline, and it ranges **0.12 to 23.26** (median ~3). Treating it as
+a 0-1 mapping-quality score was wrong, and the proposal's `< 0.5` flag therefore catches only
+3% of windows. What the "completeness confound" actually is, is **a density confound — the same
+ghost Experiment 06 exorcised from the scalar features, returning in a new representation.**
+
+### Result
+
+**Yes — mixture ratio varies between zones, and much more than the pilot suggested.**
+
+| | within-zone sd | between-zone sd | ratio |
+|---|---|---|---|
+| Experiment 09 (n=4, rasterized) | 0.135 | 0.045 | 3.0× |
+| Experiment 10 recompute (n=4, vector) | 0.136 | 0.031 | 4.4× |
+| **Experiment 11 (n=224, vector, sliding)** | **0.216** | **0.107** | **2.0×** |
+
+The n=4 pilots overstated how uniform zones are relative to each other. With proper power,
+**between-zone variation is roughly twice what the pilot implied.** Zones remain internally more
+variable than they are different from one another (2.0×), so the mixture framing stands — but
+mixture ratio is a genuinely varying zone-level quantity, which is exactly what Experiments
+08-09 predicted would be measurable and morphology *type* was not.
+
+**After removing the density confound** (median excess regressed on log node density, the same
+treatment Experiment 06 applied):
+
+- density explains **R² = 0.373** of between-zone variation
+- **79% of the spread survives** (sd 0.134 → 0.106)
+- spatial autocorrelation (2.5km neighbours) falls from **+0.632 to +0.355** — well above the
+  ~0 expected of noise, so what survives is spatially coherent structure, not residual scatter
+
+The map (`city_mixture_map.png`) shows a coherent warm north-south spine through the
+centre-east against cooler western fabric, and that structure persists in the decorrelated
+residual map.
+
+**Morphology classes** using Experiment 10's corrected rule (grid = low \|c₁\| **and** high
+\|c₂\|; a corridor has high \|c₂\| too, so \|c₂\| alone would misclassify it):
+
+| Class | Windows | Share |
+|---|---|---|
+| grid-like | 21,727 | 35.9% |
+| corridor | 25,499 | 42.2% |
+| organic / other | 13,234 | 21.9% |
+
+### Honest limitations
+
+- **Density and planned-ness cannot be fully separated with OSM alone.** The correlation
+  *continues* among well-mapped zones (r = +0.691 for density ≥ 1.0, +0.617 in the better-mapped
+  half) rather than flattening, which argues it is partly genuine co-occurrence — RAJUK-planned
+  areas really are both denser and more gridded — rather than pure mapping artifact. But
+  "partly" is as precise as this data supports. The residual is the defensible quantity; the raw
+  mixture ratio is not.
+- **30.4% of windows were too sparse to score.** That exclusion is not spatially random, so
+  city-wide summary statistics describe the mapped city, not the whole city.
+- The 400m window and the grid/corridor thresholds (\|c₁\| < 0.25, \|c₂\| > 0.35) are chosen,
+  not derived. A multi-scale run (200/400/800m) would test the first; nothing yet tests the second.
+- **Radial is still missing** — Experiment 10 (C7) showed it has no stable angular signature, so
+  the three classes above are not the proposal's four archetypes.
+
+**Decision.** The mixture ratio is a real, spatially coherent, density-corrected zone-level
+variable — the first morphology measure in this project that survives its own confound check.
+Use the **residual median excess** (`zone_final.csv`) as the zone-level morphology variable.
+Next: fix UFFM's rotation-variant comparison (Experiment 12), and cross this layer with the
+existing betweenness/articulation data to give the proposal's Principle 2 the structural input
+it has never had.
+
+---
+
+## Experiment 12 — Was UFFM's null result caused by the rotation-variance bug?
+
+**Hypothesis (from Experiment 10, C8):** UFFM is documented in this project as a failure — its
+clusters "didn't independently confirm" the scalar-feature split. Experiment 10 found a
+mechanical cause: `uffm.py:37` builds street bearings folded to [0,180°), and `uffm.py:161`
+compares them with `wasserstein_distance` on a **linear** axis. That makes the distance
+rotation-**variant**: the same street pattern rotated reads as a different urban form. If that
+bug is what broke UFFM, making the bearing term rotation-invariant should repair it.
+
+**Why only the bearing term changes.** `angle_fingerprint` uses *relative* intersection angles
+(arccos of unit vectors), so it is already rotation-invariant, and 0° (collinear) vs 180°
+(straight through-road) are genuinely different, so its linear axis is correct.
+`length_fingerprint` is a genuinely linear variable. **Bearing is the only defective term**, so
+this is a single-variable experiment. Three variants compared: `linear` (as published),
+`circular` (correct wrap-around, still rotation-variant), `harmonic` (|c_k| magnitudes,
+rotation-invariant by construction). Script: `12_uffm_rotation_fix/run.py`.
+**Figure:** `uffm_rotation_fix.png`.
+
+**Control:** the unnormalised linear pipeline reproduces the published run exactly — k=2,
+silhouette **0.4685**, matching `uffm_clustering_scores.csv`.
+
+### An error in this experiment's first version
+
+The three bearing metrics have different natural scales (linear ≈0.073, harmonic ≈0.339 between
+zones). With the fixed weights 0.40/0.35/0.25, the unscaled harmonic term simply **swamped** the
+angle and length terms, and the first run's "harmonic is worse" conclusion was measuring that,
+not the metric. Every term is now rescaled to median 1 before weighting, identically in all
+three modes. The corrected comparison is below.
+
+### Result 1 — the bug is real, and confirmed on real data
+
+Each zone's actual bearing fingerprint was circularly shifted (= rotating that zone) and
+compared to itself:
+
+| Bearing metric | d(zone, rotated self) | d(zone, *different* zone) | ratio |
+|---|---|---|---|
+| linear (**as published**) | 0.0875 | 0.0732 | **1.20** |
+| circular | 0.0600 | 0.0394 | 1.52 |
+| harmonic | **0.0000** | 0.3392 | **0.00** |
+
+**Rotating a zone moves it 20% further than a genuinely different zone moves it.** A
+rotation-invariant metric scores 0; the published metric does not. The bug is confirmed on real
+Dhaka fingerprints, not just synthetics. Note that the *circular* metric fixes wrap-around but
+is still rotation-variant — circular optimal transport still charges for the shift.
+
+### Result 2 — hypothesis REJECTED: fixing it does not rescue UFFM
+
+| Bearing term | best k | silhouette | ARI vs scalar clusters |
+|---|---|---|---|
+| linear | 2 | 0.4062 | +0.3424 |
+| circular | 2 | 0.4511 | +0.3319 |
+| harmonic | 2 | 0.4451 | +0.3081 |
+
+All three land on the same k=2 split with comparable silhouettes. Removing a confirmed bug
+changed almost nothing about the outcome. **The rotation defect is real but it is not what
+broke UFFM.**
+
+### Result 3 — what UFFM is actually measuring
+
+"Agreement with the scalar clusters" is *not* a success criterion — Experiment 06 showed those
+are substantially a size/density artifact, so agreeing with them more could mean sharing the
+artifact. The honest test is against an independent morphology measure: Experiment 11's
+density-decorrelated patch grid-ness, which shares no code and no inputs with UFFM beyond the
+graph itself.
+
+| Bearing term | η² density | η² morphology | ratio |
+|---|---|---|---|
+| linear | 0.486 | 0.012 | **39.7×** |
+| circular | 0.359 | 0.035 | 10.3× |
+| harmonic | 0.467 | 0.013 | **34.8×** |
+
+**UFFM explains 36-49% of zone density variation and 1-4% of independently-measured
+morphology — in every variant.** It is a density measure wearing a geometry costume. That,
+not the rotation bug, is why it never independently confirmed anything: it was re-measuring the
+same confound the scalar features were already caught on.
+
+### Result 4 — term ablation: where the density enters
+
+All three fingerprints are normalised to sum 1, so density must enter through a distribution's
+*shape*. Clustering on each term alone:
+
+| Term alone | k | silhouette | η² density | η² morphology |
+|---|---|---|---|---|
+| bearing (harmonic) | 2 | 0.5575 | **0.001** | 0.003 |
+| angle | 2 | 0.4699 | **0.433** | 0.033 |
+| length | 2 | 0.6672 | **0.279** | 0.017 |
+
+The density enters through **angle and length**, not bearing. Mechanically this is
+unsurprising in hindsight: denser fabric has shorter blocks (shifting the length distribution)
+and more four-way junctions (shifting the angle distribution). Both are density proxies dressed
+as geometry, and together they carry 0.60 of UFFM's weight.
+
+The rotation-invariant bearing term, isolated, is **the cleanest thing in this project so far
+with respect to the density confound (η² = 0.001)** — but it explains essentially no morphology
+either (η² = 0.003) at zone scale. That is not a contradiction: it is exactly what Experiments
+08 and 09 predicted. A 2km zone's bearing distribution is a mixture of every fabric inside it,
+so at that scale there is nothing left to detect. The same measure at 400m (Experiment 11) does
+work.
+
+**Decision.** UFFM is not repaired and should not be presented as an independent confirmation of
+anything; its k=2 split is a density split. Two things are worth keeping: (a) the rotation bug is
+real and `uffm.py:161` should be fixed regardless, because a rotation-variant morphology metric
+is indefensible even if fixing it does not change this particular result; (b) the
+rotation-invariant bearing harmonic is the project's most density-clean feature, and belongs at
+patch scale — where Experiment 11 already uses it — not at zone scale. **Three independent lines
+now converge on the same conclusion: 2km is the wrong unit for morphology, and the finer scale
+is where the signal lives.**
+
+---
+
+## Experiment 13 — Context-dependent criticality: testing the proposal's Principle 2
+
+**Hypothesis:** the proposal rests on three principles, and Principle 2 — *"node importance must
+be evaluated relative to local topological regime"* — is the mechanism that makes the framework
+topology-*aware* rather than a centrality ranking with extra steps. It requires a structural
+label per location, which the zone-level typology never produced (Experiments 08-12). Experiment
+11 produced one that survives its own confound check, so Principle 2 becomes testable for the
+first time. The abstract's motivating claim — that an intervention working in Dhanmondi's
+planned grid misfires in Old Dhaka's organic lanes — has a structural half that is checkable:
+**does the same betweenness rank mean a different thing in different fabric?**
+
+**Method:** betweenness exists only for the 1km run (v3, 338,429 node rows) and the morphology
+field came from the 2km run, but that mismatch is irrelevant — the morphology layer is a
+*geographic* field of 400m windows and the node table carries lon/lat, so they join on **space,
+not zone id**. No re-run needed. Script: `13_morphology_criticality/run.py`.
+**Figure:** `morphology_criticality.png`.
+
+**Three data hazards handled explicitly:**
+1. **Node duplication** — 338,429 rows cover only 57,999 distinct nodes (5.8×), because every
+   node appears in its own zone plus its buffered neighbours. Each node assigned to the zone
+   whose centroid is nearest, approximating core membership.
+2. **Articulation-point ambiguity** — status is computed per buffered subgraph, and **14.4% of
+   nodes disagree** between the zones containing them. Nearest-zone value used, with any-zone
+   and all-zones as sensitivity bounds (city-wide rate 0.217 / 0.330 / 0.186).
+3. **Betweenness is zone-local** — computed on each zone's buffered subgraph, so raw BC
+   magnitudes are *not* comparable across zones. Only within-zone percentile rank is used.
+   Articulation status is local topology and is comparable; tier is assigned within zone and is
+   therefore already context-relative.
+
+### Result 1 — organic fabric is measurably more cut-vertex dependent
+
+| Grid-ness bin | mean grid-ness | articulation rate | mean degree | road m/window |
+|---|---|---|---|---|
+| 0 (most organic) | −0.041 | **0.2452** | 2.54 | 4,650 |
+| 1 | 0.100 | 0.2398 | 2.64 | 5,436 |
+| 2 | 0.180 | 0.2388 | 2.63 | 5,652 |
+| 3 | 0.255 | 0.2204 | 2.66 | 5,882 |
+| 4 | 0.339 | 0.1983 | 2.72 | 5,959 |
+| 5 (most grid-like) | 0.484 | **0.1611** | 2.79 | 6,055 |
+
+Monotonic across all six bins: **organic fabric has a 52% higher articulation-point rate than
+grid-like fabric** (0.245 vs 0.161). The point-biserial correlation is only −0.067, but that is
+the expected attenuation for a binary outcome — the rate ratio is the meaningful effect size.
+
+**Density confound checked, as in Experiments 06/11/12:** raw r = −0.067, and after regressing
+out local road density the partial correlation is **−0.0397** — reduced but surviving, and in
+the same direction under both articulation-ambiguity bounds (−0.063 any-zone, −0.052 all-zones).
+
+### Result 2 — Principle 2 holds, and the direction *flips*
+
+Critical nodes are **not** preferentially located in any fabric: top-1%-BC nodes have mean local
+grid-ness +0.219, identical to everyone else (+0.219), Mann-Whitney **p = 0.49**. Location is
+fabric-independent. But what criticality *means* is not:
+
+| Fabric | art. rate, top-1% BC | art. rate, all nodes | ratio | Fisher p | n (top) |
+|---|---|---|---|---|---|
+| organic | 0.333 | 0.237 | **1.40** | 0.049 | 81 |
+| mixed | 0.198 | 0.245 | **0.81** | 0.010 | 575 |
+| grid-like | 0.173 | 0.204 | **0.85** | 0.008 | 1,188 |
+
+**In organic fabric the most critical nodes are 40% *more* likely to be cut vertices than typical
+nodes there. In grid-like and mixed fabric they are 15-19% *less* likely.** The sign of the
+relationship reverses with local morphology — which is precisely Principle 2's claim, tested and
+supported for the first time in this project.
+
+The mechanism is intuitive in hindsight and visible in the figure's third panel, where the
+tier-vs-articulation curves have opposite slopes: in a grid, a high-betweenness node carries load
+*because* it is well connected, and alternatives exist a block away. In organic fabric, a
+high-betweenness node carries load *because there is no other way through*.
+
+**The policy reading is direct:** a critical node that is also a cut vertex cannot be helped by
+signal retiming or routing optimisation — there is no alternative path to shift traffic onto.
+Only added redundancy helps. Those two situations look identical in a centrality ranking and are
+distinguished only by the morphology layer.
+
+### Result 3 — a fragility layer
+
+Per-window articulation rate crossed with grid-ness gives 26,449 scored windows (≥10 nodes each,
+pooled within 200m of the window centre). Mean articulation rate 0.204, range 0.000-0.909.
+`corr(fragility, local road density) = −0.274` — fragility is somewhat higher in sparser fabric,
+as expected, but is not primarily a density restatement. The most fragile windows concentrate in
+Zones DH207, DH176, DH225, DH163, DH180.
+
+### Two bugs found
+
+**In the pipeline:** `tiling.py:112` writes `"lon": round(d.get("lon", d.get("x", 0)), 6)`. On a
+*projected* OSMnx graph `d["x"]` is the UTM easting, so **the `lon`/`lat` columns in every zone's
+`nodes.csv` actually contain UTM coordinates**, in both v3 and v2km. No analysis in this project
+has been affected — everything reads `x_utm` — and it does not disturb the bit-for-bit port
+validation, since the notebooks behaved the same way. But anything downstream trusting those
+columns would get nonsense. Should be fixed.
+
+**In this experiment's first version:** windows are 400m across at a 100m stride, so they
+overlap. Pooling nodes by *nearest* window gave each window only its ~100m catchment — about one
+node — and yielded just **170** usable windows. Pooling every node inside the window's 400m
+extent gives **26,449**. The first version's "most fragile zones" list was an artifact of that
+and is superseded.
+
+### Limitations
+
+- The organic band has **n = 81** top-BC nodes and **p = 0.049** — the headline flip is only
+  marginally significant on its own; the grid-like (n=1,188, p=0.008) and mixed (n=575, p=0.010)
+  bands carry the weight. This wants replication before it is leaned on hard.
+- 14.4% articulation ambiguity is a real limit on precision, bounded but not eliminated.
+- "Top 1% BC" is within-zone by necessity, so it means locally-critical, not city-critical.
+- Effect sizes are modest throughout. These are real, density-corrected, directionally
+  consistent structural differences — not a strong classifier.
+
+**Decision.** Principle 2 is supported: criticality is context-dependent in the way the proposal
+asserts, and the morphology layer is what makes the distinction visible. This is the first result
+in the project that connects the validated structural work to an actionable policy distinction.
+The `nodes_morphology.csv` and `window_fragility.csv` outputs are the targeting layer the
+framework was designed to produce.
+
+**The experiment sequence should now stop and consolidate.** Experiments 08-13 form a complete
+arc — zone-level typology is ill-posed, here is convergent evidence from four independent angles,
+here is the measurable replacement, here is the city map, and here is what it is for. Remaining
+items (multi-scale windows, a radial convergence measure, fixing `uffm.py:161` and
+`tiling.py:112`) are refinements that do not change the story.

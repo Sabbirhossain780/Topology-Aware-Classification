@@ -1,0 +1,21 @@
+{
+  "n_windows": 89600,
+  "n_clean": 60460,
+  "n_zones": 202,
+  "null_lookup_ok": true,
+  "within_zone_sd": 0.21580093048077886,
+  "between_zone_sd": 0.10650867603530186,
+  "ratio": 2.0261347573903405,
+  "mixture_ratio": {
+    "mean": 0.5219009230071683,
+    "sd": 0.22943057194077066,
+    "min": 0.0970464135021097,
+    "max": 0.9725
+  },
+  "corr_mixture_vs_completeness": 0.724389373361132,
+  "classes": {
+    "grid_like": 21727,
+    "corridor": 25499,
+    "organic_other": 13234
+  }
+}
