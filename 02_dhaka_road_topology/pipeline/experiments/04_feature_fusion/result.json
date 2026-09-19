@@ -1,0 +1,59 @@
+{
+  "n_features_used": 30,
+  "features_used": [
+    "density",
+    "transitivity",
+    "avg_clustering_coef",
+    "avg_degree",
+    "n_scc",
+    "n_wcc",
+    "gscc_pct",
+    "gwcc_pct",
+    "wcc_fragmentation",
+    "orientation_entropy",
+    "path_length_p90_norm",
+    "mean_in_degree_centrality",
+    "mean_out_degree_centrality",
+    "hub_dominance_ratio",
+    "mean_closeness_centrality",
+    "mean_betweenness_centrality",
+    "betweenness_gini",
+    "mean_katz_centrality",
+    "mean_pagerank",
+    "mean_local_clustering",
+    "mean_strength_norm",
+    "global_efficiency",
+    "local_efficiency",
+    "uffm_bearing_entropy",
+    "uffm_angle_entropy",
+    "uffm_length_entropy",
+    "uffm_dominant_bearing_deg",
+    "uffm_angle_p90",
+    "uffm_angle_p180",
+    "uffm_median_length_m"
+  ],
+  "pca_n_components": 11,
+  "kmeans": {
+    "best_k": 2,
+    "best_sil": 0.3380221261515604
+  },
+  "dbscan": {
+    "eps": 6.456379469966309,
+    "n_clusters": 1,
+    "sil": -1
+  },
+  "gmm": {
+    "best_sil": 0.1666116894344416
+  },
+  "winner": "KMeans",
+  "winner_sil": 0.3380221261515604,
+  "significance": {
+    "real_best_sil": 0.3380221261515604,
+    "real_best_k": 2,
+    "null_mean": 0.04829545275103376,
+    "null_std": 0.009753613495939732,
+    "null_p95": 0.06629152781790211,
+    "p_value": 0.004975124378109453,
+    "n_permutations": 200
+  }
+}

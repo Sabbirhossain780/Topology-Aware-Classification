@@ -1,0 +1,96 @@
+{
+  "params": {
+    "patch_m": 400.0,
+    "m_per_px": 3.125,
+    "core_m": 2000.0,
+    "band_halfwidth_deg": 10,
+    "min_ink": 0.01,
+    "n_null": 200,
+    "seed": 20260919
+  },
+  "controls": {
+    "synthetic_grid_100m": {
+      "grid_score": 0.966604879377108,
+      "orientation_deg": 1,
+      "null_mean": 0.29278437535511176,
+      "null_p95": 0.7390449772793363,
+      "excess": 0.6738205040219962,
+      "z_vs_null": 2.728268272749065,
+      "angular_entropy": 0.4237101693704983,
+      "ink_fraction": 0.0615234375
+    },
+    "synthetic_grid_200m": {
+      "grid_score": 0.9748669542218258,
+      "orientation_deg": 0,
+      "null_mean": 0.27608948421598745,
+      "null_p95": 0.7410205248538951,
+      "excess": 0.6987774700058383,
+      "z_vs_null": 2.902779235772177,
+      "angular_entropy": 0.41527308324834133,
+      "ink_fraction": 0.031005859375
+    },
+    "synthetic_random_a": {
+      "grid_score": 0.26661810324477936,
+      "orientation_deg": 68,
+      "null_mean": 0.2640178655625567,
+      "null_p95": 0.3046724198488708,
+      "excess": 0.0026002376822226725,
+      "z_vs_null": 0.12303150585034635,
+      "angular_entropy": 0.9513859701722485,
+      "ink_fraction": 0.06695556640625
+    },
+    "synthetic_random_b": {
+      "grid_score": 0.26071293938189105,
+      "orientation_deg": 24,
+      "null_mean": 0.256711822401765,
+      "null_p95": 0.27712487101477223,
+      "excess": 0.004001116980126063,
+      "z_vs_null": 0.34680044494361284,
+      "angular_entropy": 0.9751635194384175,
+      "ink_fraction": 0.09332275390625
+    }
+  },
+  "control_anchors": {
+    "random": 0.2636655213133352,
+    "perfect_grid": 0.9707359167994669
+  },
+  "n_patches": 100,
+  "n_valid": 100,
+  "corr_score_vs_ink": 0.10067963166667543,
+  "within_zone_sd_mean": 0.13500640105575468,
+  "between_zone_sd_of_means": 0.04473105980356863,
+  "per_zone": {
+    "Zone_DH168": {
+      "prior": "grid-leaning",
+      "n_valid": 25,
+      "median": 0.35240843278054323,
+      "mean": 0.34806827166466137,
+      "max": 0.5950943170079449,
+      "sd": 0.11560930743490681
+    },
+    "Zone_DH167": {
+      "prior": "grid-leaning",
+      "n_valid": 25,
+      "median": 0.40747199231039827,
+      "mean": 0.4298995160422853,
+      "max": 0.784374226524772,
+      "sd": 0.16369148002111275
+    },
+    "Zone_DH130": {
+      "prior": "organic-leaning",
+      "n_valid": 25,
+      "median": 0.3295148742321022,
+      "mean": 0.32694795164919765,
+      "max": 0.6096654765353965,
+      "sd": 0.13322821754762362
+    },
+    "Zone_DH116": {
+      "prior": "organic-leaning",
+      "n_valid": 25,
+      "median": 0.31753559687336963,
+      "mean": 0.3574247988423051,
+      "max": 0.6229596829949349,
+      "sd": 0.12749659921937548
+    }
+  }
+}

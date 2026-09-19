@@ -1,0 +1,51 @@
+{
+  "label": "1km",
+  "r2_against_size": {
+    "density": 0.7323737430917991,
+    "transitivity": 0.11889753132033476,
+    "avg_clustering_coef": 0.060958318008015544,
+    "avg_degree": 0.40060052208919417,
+    "n_scc": 0.38747977818287105,
+    "n_wcc": 0.29744213866785796,
+    "gscc_pct": 0.11886618638003332,
+    "gwcc_pct": 0.16212719090590932,
+    "wcc_fragmentation": 0.49288333849357624,
+    "orientation_entropy": 0.003922567549347944,
+    "path_length_p90_norm": 0.13687861971677728,
+    "mean_in_degree_centrality": 0.5836850970562706,
+    "mean_out_degree_centrality": 0.5836850970562706,
+    "hub_dominance_ratio": 0.0501248823926288,
+    "mean_closeness_centrality": 0.7466897753110513,
+    "mean_betweenness_centrality": 0.8289112164960238,
+    "betweenness_gini": 0.5301911712643713,
+    "mean_katz_centrality": 0.8340554513513989,
+    "mean_pagerank": 0.5572760738003935,
+    "mean_local_clustering": 0.06487999663821031,
+    "mean_strength_norm": 0.6171611675150591,
+    "global_efficiency": 0.8212673446272163,
+    "local_efficiency": 0.06469277211933211
+  },
+  "pca_n_components": 10,
+  "kmeans": {
+    "best_k": 2,
+    "best_sil": 0.2689598196600542
+  },
+  "dbscan": {
+    "n_clusters": 1,
+    "sil": -1
+  },
+  "gmm": {
+    "best_sil": 0.018538886077520175
+  },
+  "winner": "KMeans",
+  "winner_sil": 0.2689598196600542,
+  "significance": {
+    "real_best_sil": 0.2689598196600542,
+    "real_best_k": 2,
+    "null_mean": 0.04897856871804826,
+    "null_std": 0.00900380865511839,
+    "null_p95": 0.06590476531349851,
+    "p_value": 0.004975124378109453,
+    "n_permutations": 200
+  }
+}

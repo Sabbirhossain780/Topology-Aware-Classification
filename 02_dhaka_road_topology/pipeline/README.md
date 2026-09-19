@@ -90,60 +90,90 @@ results/gat/city_master_nodes.png    every zone's master node, one map
 
 ## What came out
 
-**Clustering (scalar features, Stage 4):** KMeans won with **k=2**,
-silhouette **0.408** — a 184/643 zone split. DBSCAN found essentially no
-structure (1 cluster, silhouette -1.0, i.e. failed). GMM's best silhouette
-was **0.046** — noise. The v3 notebook's own documentation expected "k=3 or
-k=4" once footpaths/lanes were included in the network; getting k=2 back,
-with two of three algorithms failing to find any real separation, is a weak
-result.
+The port's initial clustering result was weak (see "Original weak result"
+below) — but a systematic experiment sequence since then (full log in
+[`experiments/EXPERIMENTS.md`](experiments/EXPERIMENTS.md)) found and fixed
+the actual problem, and arrived at a validated, defensible finding:
 
-**UFFM (geometric fingerprints, Wasserstein distance + spectral
-clustering):** best k=2, silhouette **0.437** — marginally better than the
-scalar approach, but the cross-tabulation against the scalar clusters
-(`uffm_v3_crosstab.csv`) doesn't line up cleanly: scalar Cluster_0 (184
-zones) splits 40/144 across the two UFFM clusters, and scalar Cluster_1
-(643 zones) splits 582/61. Two different feature representations of the
-same zones don't agree on where the boundary is — a sign the "2 topology
-types" story isn't a stable property of the data, it's close to the
-boundary both methods happen to draw.
+**Dhaka's road network does not separate into discrete morphological
+archetypes (Maze/Grid/Radial/Periphery) at 1-2km grid scale** — this
+confirms the team's own prior null-result finding. **But it does separate,
+robustly, into a connectivity-level gradient**: dense/continuous urban
+fabric (whether organically grown or formally planned) vs.
+sparse/fragmented/peripheral development. Unlike every earlier attempt,
+this result is:
+- **Statistically significant** against a permutation null (p=0.005,
+  ~4-5x above the 95th-percentile of what random data produces)
+- **Not a zone-size artifact** — most "normalized" centrality features
+  turned out to be 60-85% explained by raw zone size alone
+  (`mean_katz_centrality` R²=0.85, `global_efficiency` R²=0.83); the
+  finding above is what survives after regressing that out
+- **Visually confirmed on the ground** — 7/7 sampled zones matched their
+  predicted profile when checked against OpenStreetMap (dense continuous
+  fabric for the "connected" cluster including both organic and
+  RAJUK-style planned-grid examples; sparse/rural/institutional/
+  urbanizing-fringe fabric for the other)
 
-**Betweenness/GAT:** this part is more solid — betweenness centrality,
-tier assignment, and articulation-point detection are exact, deterministic
-graph computations (Brandes' algorithm), not a fitted model. `all_zones_summary.csv`
-and the master-node map are a reasonable output on their own, independent
-of whether the clustering holds up.
+See `experiments/EXPERIMENTS.md` Experiments 01, 06, and 07 for the full
+methodology. The original weak numbers below are kept for context on how
+this result was reached, not as the final word.
+
+### Original weak result (superseded, kept for context)
+
+KMeans won with k=2, silhouette 0.408 (1km) / 0.513 (2km, before the size
+confound was found and corrected). DBSCAN found no structure at any stage
+of this project. GMM's silhouette was 0.046-0.242 depending on
+configuration. UFFM (geometric fingerprints) didn't independently confirm
+the scalar-feature split. All of this turned out to be substantially a
+zone-size confound, not a measure of the feature set's real
+discriminative power — see Experiment 06.
+
+**Betweenness/GAT:** this part was solid throughout — betweenness
+centrality, tier assignment, and articulation-point detection are exact,
+deterministic graph computations (Brandes' algorithm), not a fitted model.
+`all_zones_summary.csv` and the master-node map are a reasonable output on
+their own, independent of the clustering work above.
 
 ## Known limitations
 
-- **Bootstrap feature stability is bad.** `feature_stability.csv` reports
-  coefficient of variation per feature under 80%-node resampling. Several
-  features the clustering leans on have CV well above the notebook's own
-  0.35 flag threshold: `transitivity` (1.35), `avg_clustering_coef` (1.32),
-  `n_scc`/`n_wcc` (~1.2), `density` (0.87). A feature with CV > 1 means its
-  bootstrap standard deviation exceeds its mean — the feature is not a
-  stable property of a zone, it's noisy at the sample sizes involved.
-- **Only one of three clustering algorithms found real structure.** DBSCAN
-  and GMM effectively failed (silhouette -1.0 and 0.046). KMeans's 0.408 is
-  moderate at best — not the kind of clean separation you'd want before
-  naming clusters after urban-form archetypes (RAJUK grid, Moghul organic,
-  etc., as the notebook's own Stage 4 comments suggested).
-- **UFFM doesn't independently confirm the scalar clustering.** If two
-  different feature representations agreed on the same 2-way split, that
-  would be real evidence. They don't — see the crosstab above.
-- **k=2 is a coarse result for a "topology-aware policy targeting"
-  framework.** A binary split across 827 zones doesn't give a policymaker
-  much to target differently.
+- **This is a connectivity-level finding, not a morphology-type
+  finding.** The validated cluster split doesn't distinguish "Grid" from
+  "Maze" — both appear inside the same "connected" cluster in the
+  Experiment 07 spot-check. It distinguishes dense/continuous networks
+  from sparse/fragmented ones, which is a real and useful distinction for
+  policy targeting, but narrower than the original four-archetype goal.
+  **Experiment 08 shows visually why**: rendering whole zones
+  ([`experiments/08_cv_fft_pilot/pilot_renders_and_spectra.png`](experiments/08_cv_fft_pilot/pilot_renders_and_spectra.png))
+  reveals that no 2km zone *has* a single morphology — every one is a
+  mixture of grid patches and organic fabric, and their 2D spectra are
+  near-identical as a result. A zone-level morphology label is not a
+  well-defined thing to ask for at this scale. **Experiments 09-10 then
+  measured this** at 400m patch scale: a rotation-invariant per-patch
+  grid-score, validated by eye
+  ([`vector_ranking_check.png`](experiments/10_descriptor_validation/vector_ranking_check.png)),
+  shows **within-zone morphological variation is ~4x the between-zone
+  variation**. So the zone-level label isn't badly measured, it's
+  poorly defined — and the **mixture ratio** is the measurable replacement.
+  (Experiment 09's own numbers were later found to carry a rasterization
+  artifact and are superseded by Experiment 10's vector recompute; the
+  conclusion held and strengthened.)
+- **The satellite validation (Experiment 07) was a small, single-reviewer
+  sample** (7 zones) — not the original proposal's planned n=30
+  expert-morphological-assessment panel. The 7/7 agreement is a genuine
+  signal, not a substitute for that more rigorous check.
+- **The size-confound correction (Experiment 06) is not perfectly clean.**
+  A ~3x mean node-count gap remains between the two clusters after
+  regressing out `log(node_count)` (down from ~15x before) — better, but
+  worth keeping in mind rather than treating as fully solved.
+- **Bootstrap feature stability is still uneven.** `feature_stability.csv`
+  flags several features (mostly the same ones later found to be
+  size-confounded) with CV well above 0.35 under 80%-node resampling.
 
-None of this is a code bug — it's ported faithfully from the original
-notebooks (see Validation below) and reflects genuine weak signal in the
-26-feature representation at the 1km-grid scale. Candidates worth trying
-before trusting cluster labels as a finding: richer features (the UFFM
-fingerprints are a step in that direction but don't resolve it either),
-a coarser or admin-boundary zone unit (`thana` config, unvalidated — see
-TODO), or treating this as a two-way (dense-connected vs.
-fragmented-organic) distinction rather than searching for more types that
-the data doesn't support.
+None of the above is a code bug — the pipeline is validated bit-for-bit
+against the original notebooks (see Validation below). The weak initial
+result and the confound that explained it were both genuine properties of
+the feature set and the data, tracked down through the experiment sequence
+in `experiments/EXPERIMENTS.md` rather than assumed or dismissed.
 
 ## Validation — the port changed nothing
 
@@ -207,6 +237,28 @@ analysis from what's tracked here.
 
 - [ ] Address the clustering weakness above — try a richer or different
       feature set before treating k=2 as a real finding
-- [ ] Validate the `tile` stage against a fresh OSM download
-- [ ] Validate the `thana` zone-unit path (no boundary file tested yet)
+- [x] Validate the `tile` stage — done via the 2km grid run (Experiment 03), 224/234 zones
+      extracted correctly from a freshly-tiled (not re-downloaded) graph
+- [ ] `thana` zone-unit path is explicitly out of scope per user direction, not just
+      unvalidated (see `experiments/EXPERIMENTS.md` Aim section)
+- [x] **Patch-scale mixture-ratio pilot** — done as Experiment 09. A 400m patch grid-score
+      (orthogonal-pair spectral energy) is calibrated, density-decoupled and visually
+      validated; within-zone variation is 3.0x between-zone variation on n=4 zones.
+- [ ] **Scale the patch metric to all 224 zones** (~5,600 patches, runs in minutes) — the live
+      research direction. The n=4 pilot cannot test whether *mixture ratio* varies between
+      zones even though morphology *type* does not; the full run can. See
+      `experiments/EXPERIMENTS.md` Experiment 09.
+- [ ] Try a sliding patch window instead of a fixed lattice — a grid straddling two patch
+      boundaries is currently penalised (Experiment 09 caveat)
+- [ ] **Fix UFFM's fingerprint comparison** — `uffm.py:161` uses linear-axis Wasserstein on a
+      circular bearing variable, making it rotation-VARIANT: two identical grids rotated 45°
+      apart score further apart than a grid and an organic network (Experiment 10, C8). This
+      is a candidate root cause for UFFM's documented null result, and the fix is small.
+- [ ] **Add a spatial convergence measure for "radial"** — Experiment 10 (C7) showed radial has
+      no stable angular signature, so it cannot come from the |c_k| descriptor at all.
 - [ ] Add a smoke config (`gat_max_zones` set low) for fast sanity checks
+- [ ] Run the Experiment 07 satellite check at proper scale (n=30, ideally a second reviewer)
+      to actually meet the original proposal's validation target rather than approximate it
+- [ ] Tighten the size-confound correction in Experiment 06 — a ~3x zone-size gap remains
+      between clusters after decorrelation; worth investigating whether a stronger
+      (e.g. non-linear) size correction removes it further without destroying the real signal

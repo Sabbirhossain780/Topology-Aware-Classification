@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors
@@ -213,6 +214,122 @@ def apply_user_labels(user_labels: dict[str, str], config) -> pd.DataFrame:
                 lambda x: user_labels.get(str(x), x) if pd.notna(x) else x)
             meta_df.to_csv(config.metadata_csv, index=False)
     return cluster_df
+
+
+def filter_stable_features(norm_df: pd.DataFrame, stability_df: pd.DataFrame,
+                            cv_threshold: float = 0.35) -> pd.DataFrame:
+    """Restrict a normalized-features frame to bootstrap-stable columns only.
+
+    stability_df is feature_stability.csv's output: one row per feature with
+    a mean_cv column. Features above cv_threshold are dropped.
+    """
+    stable = set(stability_df.loc[stability_df["mean_cv"] <= cv_threshold, "feature"])
+    keep_cols = ["zone_id"] + [c for c in norm_df.columns if c in stable]
+    dropped = [c for c in norm_df.columns if c != "zone_id" and c not in stable]
+    log.info("Stable features kept (%d): %s", len(keep_cols) - 1, keep_cols[1:])
+    log.info("Unstable features dropped (%d): %s", len(dropped), dropped)
+    return norm_df[keep_cols].copy()
+
+
+def residualize_features(norm_df: pd.DataFrame, raw_df: pd.DataFrame,
+                          size_col: str = "node_count", log_transform: bool = True) -> tuple[pd.DataFrame, dict]:
+    """Regress each feature against zone size and keep the residuals.
+
+    Discovered mid-experiment: several "normalized" features (global_efficiency,
+    betweenness_gini) are still mechanically coupled to raw zone size -- small
+    zones have short paths almost by construction, which inflates efficiency
+    and compresses gini regardless of actual street layout. This removes that
+    confound per-feature via linear regression against log(node_count), so
+    whatever clustering signal remains (if any) isn't just re-discovering zone
+    size.
+
+    Returns (residual_df, r2_per_feature) -- the R^2 values are diagnostic:
+    a feature with high R^2 against size alone was mostly a size proxy.
+    """
+    feat_cols = [c for c in norm_df.columns if c != "zone_id"]
+    merged = norm_df.merge(raw_df[["zone_id", size_col]], on="zone_id")
+
+    x = merged[size_col].values.astype(float)
+    if log_transform:
+        x = np.log(np.maximum(x, 1))
+    x = x.reshape(-1, 1)
+
+    resid_df = merged[["zone_id"]].copy()
+    r2_per_feature = {}
+    for col in feat_cols:
+        y = merged[col].values.astype(float)
+        reg = LinearRegression().fit(x, y)
+        resid_df[col] = y - reg.predict(x)
+        r2_per_feature[col] = float(reg.score(x, y))
+
+    log.info("Size-explained variance (R^2 against log(%s)):", size_col)
+    for feat, r2 in sorted(r2_per_feature.items(), key=lambda kv: -kv[1]):
+        log.info("  %-28s R^2=%.4f", feat, r2)
+
+    return resid_df, r2_per_feature
+
+
+def permutation_test(norm_df: pd.DataFrame, config, n_permutations: int = 200,
+                      random_state: int | None = None) -> dict:
+    """Is the real clustering's best silhouette distinguishable from noise?
+
+    Shuffles each feature column independently across zones (destroys joint
+    structure between features, keeps each feature's own marginal
+    distribution), then re-runs the exact same PCA -> KMeans(k=2..8) model
+    selection used on the real data. Repeating this gives a null
+    distribution of "best silhouette you'd get by chance" to compare the
+    real result against.
+    """
+    rng = np.random.default_rng(random_state if random_state is not None else config.random_state)
+    feat_cols = [c for c in norm_df.columns if c != "zone_id"]
+    X_real = norm_df[feat_cols].fillna(0).values
+
+    real_pca = run_pca(norm_df, config)
+    real_km = run_kmeans(real_pca["X_pca"], config)
+    real_best_sil = real_km["best_sil"]
+
+    null_sils = np.empty(n_permutations)
+    for i in tqdm(range(n_permutations), desc="Permutation test"):
+        X_perm = X_real.copy()
+        for j in range(X_perm.shape[1]):
+            rng.shuffle(X_perm[:, j])
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_perm)
+        pca_full = PCA(random_state=config.random_state)
+        pca_full.fit(X_scaled)
+        cumvar = np.cumsum(pca_full.explained_variance_ratio_)
+        n_comp = max(min(int(np.searchsorted(cumvar, config.pca_variance)) + 1,
+                          len(feat_cols)), 2)
+        pca = PCA(n_components=n_comp, random_state=config.random_state)
+        X_pca_perm = pca.fit_transform(X_scaled)
+
+        best_sil_perm = -1.0
+        for k in config.k_range:
+            km = KMeans(n_clusters=k, random_state=config.random_state, n_init=20, max_iter=500)
+            lbl = km.fit_predict(X_pca_perm)
+            sil = silhouette_score(X_pca_perm, lbl) if k > 1 else -1
+            best_sil_perm = max(best_sil_perm, sil)
+        null_sils[i] = best_sil_perm
+
+    p_value = float((null_sils >= real_best_sil).sum() + 1) / (n_permutations + 1)
+
+    result = {
+        "real_best_sil": real_best_sil,
+        "real_best_k": real_km["best_k"],
+        "null_sils": null_sils,
+        "null_mean": float(null_sils.mean()),
+        "null_std": float(null_sils.std()),
+        "null_p95": float(np.percentile(null_sils, 95)),
+        "p_value": p_value,
+        "n_permutations": n_permutations,
+    }
+
+    log.info("Permutation test: real silhouette=%.4f (k=%d) vs null mean=%.4f +/- %.4f "
+              "(95th pct=%.4f), p=%.4f",
+              real_best_sil, real_km["best_k"], result["null_mean"], result["null_std"],
+              result["null_p95"], p_value)
+    return result
 
 
 def run_clustering_stage(config) -> dict:

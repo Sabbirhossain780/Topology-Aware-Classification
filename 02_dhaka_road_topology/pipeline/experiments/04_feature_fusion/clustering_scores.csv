@@ -1,0 +1,4 @@
+algorithm,silhouette,n_clusters
+KMeans,0.3380221261515604,2
+DBSCAN,-1.0,1
+GMM,0.1666116894344416,5

@@ -1,0 +1,34 @@
+{
+  "Zone_DH168": {
+    "spectral_entropy": 0.9401826180459311,
+    "top_0.1pct_energy": 0.03086749427587398,
+    "top_1pct_energy": 0.13023723803106474,
+    "angular_entropy": 0.9890516168289626,
+    "ground_truth": "grid",
+    "ink_fraction": 0.1138458251953125
+  },
+  "Zone_DH167": {
+    "spectral_entropy": 0.9379930805314836,
+    "top_0.1pct_energy": 0.03486725521028327,
+    "top_1pct_energy": 0.14054697929900617,
+    "angular_entropy": 0.9885393443320496,
+    "ground_truth": "grid",
+    "ink_fraction": 0.11237716674804688
+  },
+  "Zone_DH130": {
+    "spectral_entropy": 0.933203773894932,
+    "top_0.1pct_energy": 0.03861751898139673,
+    "top_1pct_energy": 0.15280991754879272,
+    "angular_entropy": 0.986368219945711,
+    "ground_truth": "organic",
+    "ink_fraction": 0.1139984130859375
+  },
+  "Zone_DH116": {
+    "spectral_entropy": 0.9408823143406868,
+    "top_0.1pct_energy": 0.023995079927539315,
+    "top_1pct_energy": 0.12321587712253808,
+    "angular_entropy": 0.9845042001502861,
+    "ground_truth": "organic",
+    "ink_fraction": 0.13008880615234375
+  }
+}

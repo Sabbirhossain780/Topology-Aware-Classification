@@ -1,0 +1,27 @@
+{
+  "n_zones_before": 224,
+  "n_zones_excluded": 22,
+  "n_zones_after": 202,
+  "kmeans": {
+    "best_k": 2,
+    "best_sil": 0.3772874182455945
+  },
+  "dbscan": {
+    "n_clusters": 1,
+    "sil": -1
+  },
+  "gmm": {
+    "best_sil": 0.24175584093038927
+  },
+  "winner": "KMeans",
+  "winner_sil": 0.3772874182455945,
+  "significance": {
+    "real_best_sil": 0.3772874182455945,
+    "real_best_k": 2,
+    "null_mean": 0.05627605390541996,
+    "null_std": 0.008407913160206105,
+    "null_p95": 0.07274243854465513,
+    "p_value": 0.004975124378109453,
+    "n_permutations": 200
+  }
+}
